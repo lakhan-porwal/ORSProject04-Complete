@@ -3,6 +3,7 @@ pipeline {
     agent any
 
     environment {
+        JAVA_HOME = 'C:\\Program Files\\Java\\jdk-21.0.12'
         DOCKERHUB_USER = 'lakhanporwal'
         MYSQL_IMAGE = 'lakhanporwal/mysql:8.0'
         ORS_IMAGE = 'lakhanporwal/orsproject04:latest'
@@ -32,10 +33,9 @@ pipeline {
         stage('Check Java Version') {
             steps {
                 bat '''
-                    echo Checking Java version...
-                    java -version
-                    where java
                     echo JAVA_HOME=%JAVA_HOME%
+                    "%JAVA_HOME%\\bin\\java.exe" -version
+                    "%JAVA_HOME%\\bin\\javac.exe" -version
                 '''
             }
         }
@@ -44,6 +44,7 @@ pipeline {
             steps {
                 dir('ORSProject04') {
                     bat '''
+                        "%JAVA_HOME%\\bin\\java.exe" -version
                         "C:\\apache-maven-3.10.0-bin\\apache-maven-3.10.0\\bin\\mvn.cmd" clean package -DskipTests
                     '''
                 }
