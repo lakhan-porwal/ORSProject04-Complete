@@ -3,10 +3,6 @@ pipeline {
     agent any
 
     environment {
-        JAVA_HOME = 'C:\\Program Files\\Java\\jdk-21.0.12'
-        MAVEN = 'C:\\apache-maven-3.10.0-bin\\apache-maven-3.10.0\\bin\\mvn.cmd'
-        PATH = "${JAVA_HOME}\\bin;${env.PATH}"
-
         DOCKERHUB_USER = 'lakhanporwal'
         MYSQL_IMAGE = 'lakhanporwal/mysql:8.0'
         ORS_IMAGE = 'lakhanporwal/orsproject04:latest'
@@ -14,26 +10,31 @@ pipeline {
 
     stages {
 
-        stage('Clone Repository') {
+        stage('Checkout Repository') {
             steps {
-                git url: 'https://github.com/lakhan-porwal/ORSProject04-Complete.git',
-                    branch: 'main'
+                checkout scm
             }
         }
 
         stage('Check Project Files') {
             steps {
-                bat 'dir'
-                bat 'dir /s /b pom.xml'
-                bat 'dir /s /b Dockerfile'
-                bat 'dir /s /b docker-compose.yml'
+                dir('ORSProject04') {
+                    bat '''
+                        echo Checking project files...
+                        dir pom.xml
+                        dir Dockerfile
+                        dir docker-compose.yml
+                    '''
+                }
             }
         }
 
         stage('Build New WAR') {
             steps {
                 dir('ORSProject04') {
-                    bat 'call "%MAVEN%" clean package'
+                    bat '''
+                        "C:\\apache-maven-3.10.0-bin\\apache-maven-3.10.0\\bin\\mvn.cmd" clean package -DskipTests
+                    '''
                 }
             }
         }
@@ -63,8 +64,7 @@ pipeline {
                 ]) {
                     bat '''
                         @echo off
-                        echo %DH_TOKEN% | docker login -u %DH_USER% --password-stdin
-                        if errorlevel 1 exit /b 1
+                        echo %DH_TOKEN%| docker login --username "%DH_USER%" --password-stdin
                     '''
                 }
             }
@@ -73,32 +73,28 @@ pipeline {
         stage('Tag Docker Images') {
             steps {
                 bat '''
-                    docker tag mysql:8.0 %DOCKERHUB_USER%/mysql:8.0
-                    if errorlevel 1 exit /b 1
-
-                    docker tag orsproject04:latest %DOCKERHUB_USER%/orsproject04:latest
-                    if errorlevel 1 exit /b 1
+                    docker tag mysql:8.0 %MYSQL_IMAGE%
+                    docker tag orsproject04:latest %ORS_IMAGE%
                 '''
             }
         }
 
-        stage('Push Docker Images') {
+        stage('Push Images to Docker Hub') {
             steps {
                 bat '''
-                    docker push %DOCKERHUB_USER%/mysql:8.0
-                    if errorlevel 1 exit /b 1
-
-                    docker push %DOCKERHUB_USER%/orsproject04:latest
-                    if errorlevel 1 exit /b 1
+                    docker push %MYSQL_IMAGE%
+                    docker push %ORS_IMAGE%
                 '''
             }
         }
 
-        stage('Deploy Using Docker Compose') {
+        stage('Deploy Application') {
             steps {
                 dir('ORSProject04') {
-                    bat 'docker-compose down'
-                    bat 'docker-compose up -d --build'
+                    bat '''
+                        docker compose down
+                        docker compose up -d
+                    '''
                 }
             }
         }
@@ -110,7 +106,11 @@ pipeline {
         }
 
         failure {
-            echo 'Pipeline failed. Check Console Output.'
+            echo 'ORS pipeline failed. Check Console Output.'
+        }
+
+        always {
+            echo 'Pipeline execution finished.'
         }
     }
 }
